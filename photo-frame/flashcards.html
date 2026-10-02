@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>婴儿黑白视觉训练卡 (20 张)</title>
+<style>
+  /* 电子墨水屏: 纯白背景, 纯黑图形, 无灰度渐变 */
+  html, body { margin: 0; padding: 0; background: #FFFFFF; }
+  .card {
+    width: 758px; height: 1024px;
+    background: #FFFFFF;
+    overflow: hidden;
+    box-sizing: border-box;
+    position: relative;
+  }
+  .card svg { display: block; width: 758px; height: 1024px; }
+  /* 底部中文卡名: 约 90% 高度处, 44px, 系统黑体 */
+  .label {
+    font-family: "STHeiti Medium","STHeiti","PingFang SC",sans-serif;
+    font-size: 44px;
+    fill: #000000;
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ============================================================
+// 婴儿黑白视觉训练卡 — 20 张, 758×1024, 纯黑白剪影
+// 用法: flashcards.html          → 纵向显示全部 20 张 (调试)
+//       flashcards.html?n=3     → 只显示第 3 张 (供无头 Chrome 截图)
+// 坐标约定: CX=379 水平中心, 图形垂直中心约 448, 卡名在 y≈922
+// ============================================================
+const CX = 379, GY = 448; // 图形中心
+
+// ---- 辅助函数 ------------------------------------------------
+// 五角星顶点 (均匀分布, 外径 R 内径 r)
+function starPts(cx, cy, R, r) {
+  const p = [];
+  for (let i = 0; i < 10; i++) {
+    const rad = (i % 2 === 0) ? R : r;
+    const a = (-90 + i * 36) * Math.PI / 180;
+    p.push((cx + rad * Math.cos(a)).toFixed(1) + ',' + (cy + rad * Math.sin(a)).toFixed(1));
+  }
+  return p.join(' ');
+}
+// 太阳的 12 道均匀光芒 (从内半径 168 到外半径 258, 内端圆帽与核心圆相接)
+function sunRays(cx, cy) {
+  let s = '';
+  for (let i = 0; i < 12; i++) {
+    const a = i * 30 * Math.PI / 180;
+    const x1 = (cx + 168 * Math.cos(a)).toFixed(1), y1 = (cy + 168 * Math.sin(a)).toFixed(1);
+    const x2 = (cx + 258 * Math.cos(a)).toFixed(1), y2 = (cy + 258 * Math.sin(a)).toFixed(1);
+    s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+  }
+  return s;
+}
+// 小花 6 瓣: 花瓣椭圆绕中心旋转 60° 复制
+function petals(cx, cy) {
+  let s = '';
+  for (let k = 0; k < 6; k++) {
+    s += `<ellipse cx="${cx}" cy="${cy - 148}" rx="64" ry="102" transform="rotate(${k * 60} ${cx} ${cy})"/>`;
+  }
+  return s;
+}
+// 4×4 棋盘格 (左上角为黑)
+function checker(cx, cy, cell) {
+  let s = '';
+  const x0 = cx - 2 * cell, y0 = cy - 2 * cell;
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 4; c++)
+      if ((r + c) % 2 === 0)
+        s += `<rect x="${x0 + c * cell}" y="${y0 + r * cell}" width="${cell}" height="${cell}"/>`;
+  return s;
+}
+// 卡片外框 + 底部卡名
+function cardSvg(name, art) {
+  return `<svg viewBox="0 0 758 1024" width="758" height="1024" xmlns="http://www.w3.org/2000/svg">
+${art}
+<text class="label" x="379" y="922" text-anchor="middle" dominant-baseline="middle">${name}</text>
+</svg>`;
+}
+
+// ---- 20 张卡的图形 (纯黑 #000 填充/描边, 白色 #fff 挖空) ----
+const ART = [
+
+// 1 月亮: 双圆弧构成的饱满对称月牙, 开口朝右 (整体放大并重新居中)
+`<g transform="translate(379 448) scale(1.256) translate(-245.5 -447.5)">
+<path d="M 449 223.6 A 265 265 0 1 0 449 672.4 A 245 245 0 0 1 449 223.6 Z" fill="#000"/>
+</g>`,
+
+// 2 太阳: 实心圆 + 12 道均匀圆头光芒
+`<g stroke="#000" stroke-width="40" stroke-linecap="round">
+${sunRays(CX, GY)}
+</g>
+<circle cx="379" cy="448" r="150" fill="#000"/>`,
+
+// 3 苹果: 贝塞尔果身 (顶部内凹) + 弯柄 + 斜叶 (整体放大 1.18 倍并微下移)
+`<g transform="translate(378.5 445) scale(1.18) translate(-378.5 -429)">
+<path d="M 379 320 C 335 258 245 262 202 330 C 158 398 165 498 215 566
+         C 265 634 328 668 379 668 C 430 668 493 634 543 566
+         C 593 498 600 398 556 330 C 513 262 423 258 379 320 Z" fill="#000"/>
+<path d="M 379 316 C 386 268 402 236 430 212" stroke="#000" stroke-width="24" stroke-linecap="round" fill="none"/>
+<path d="M 436 254 C 452 196 524 178 570 200 C 568 256 506 284 452 272 Z" fill="#000"/>
+</g>`,
+
+// 4 香蕉: 粗月牙形, 外弧深垂内弧平缓, 中段厚约 120px, 两端锐利收尖微微上翘, 右端带短蒂
+`<path d="M 132 360 C 215 610 545 610 628 360 C 532 452 228 452 132 360 Z" fill="#000"/>
+<path d="M 622 364 L 660 332" stroke="#000" stroke-width="30" stroke-linecap="round"/>`,
+
+// 5 五角星: 外径 268 内径 112, 五角均匀
+`<polygon points="${starPts(379, 452, 268, 112)}" fill="#000"/>`,
+
+// 6 爱心: 两瓣圆润 + 下部收尖的贝塞尔心形
+`<path d="M 379 648 C 298 592 140 496 140 372 C 140 282 212 234 284 234
+         C 336 234 372 262 379 306 C 386 262 422 234 474 234
+         C 546 234 618 282 618 372 C 618 496 460 592 379 648 Z" fill="#000"/>`,
+
+// 7 同心圆靶心: 黑白交替 5 环 (258/192/126/60/20)
+`<circle cx="379" cy="448" r="258" fill="#000"/>
+<circle cx="379" cy="448" r="192" fill="#fff"/>
+<circle cx="379" cy="448" r="126" fill="#000"/>
+<circle cx="379" cy="448" r="60" fill="#fff"/>
+<circle cx="379" cy="448" r="20" fill="#000"/>`,
+
+// 8 三角形: 圆角等边三角 (粗描边 round join 实现圆角)
+`<polygon points="379,204 602.4,591 155.6,591" fill="#000" stroke="#000" stroke-width="46" stroke-linejoin="round"/>`,
+
+// 9 嵌套方形: 黑白黑三层交替, 微圆角
+`<rect x="129" y="198" width="500" height="500" rx="14" fill="#000"/>
+<rect x="214" y="283" width="330" height="330" rx="10" fill="#fff"/>
+<rect x="299" y="368" width="160" height="160" rx="8" fill="#000"/>`,
+
+// 10 雨伞: 半圆伞面 + 下缘四段上拱扇贝边 + 直杆弯钩柄
+`<path d="M 129 468 A 250 250 0 0 1 629 468
+         A 100 100 0 0 0 504 468 A 100 100 0 0 0 379 468
+         A 100 100 0 0 0 254 468 A 100 100 0 0 0 129 468 Z" fill="#000"/>
+<path d="M 379 468 L 379 668 A 45 45 0 0 0 469 668" stroke="#000" stroke-width="26" stroke-linecap="round" fill="none"/>`,
+
+// 11 小鱼: 胖椭圆身 + 内凹三角尾 (与身体留白断开) + 白眼点, 朝左
+`<ellipse cx="322" cy="448" rx="196" ry="138" fill="#000"/>
+<path d="M 546 448 L 668 336 L 630 448 L 668 560 Z" fill="#000"/>
+<circle cx="246" cy="414" r="25" fill="#fff"/>`,
+
+// 12 蝴蝶: 上大下小四翅 (上翅外倾) + 身 + 头 + 双触角
+`<ellipse cx="252" cy="368" rx="150" ry="120" transform="rotate(-25 252 368)" fill="#000"/>
+<ellipse cx="506" cy="368" rx="150" ry="120" transform="rotate(25 506 368)" fill="#000"/>
+<ellipse cx="282" cy="592" rx="100" ry="96" fill="#000"/>
+<ellipse cx="476" cy="592" rx="100" ry="96" fill="#000"/>
+<ellipse cx="379" cy="480" rx="32" ry="150" fill="#000"/>
+<circle cx="379" cy="312" r="36" fill="#000"/>
+<circle cx="252" cy="368" r="34" fill="#fff"/>
+<circle cx="506" cy="368" r="34" fill="#fff"/>
+<path d="M 365 288 C 348 244 316 214 282 204" stroke="#000" stroke-width="13" stroke-linecap="round" fill="none"/>
+<path d="M 393 288 C 410 244 442 214 476 204" stroke="#000" stroke-width="13" stroke-linecap="round" fill="none"/>
+<circle cx="282" cy="204" r="13" fill="#000"/>
+<circle cx="476" cy="204" r="13" fill="#000"/>`,
+
+// 13 小花: 六瓣椭圆环绕 + 白心黑环 (整体放大 1.15 倍)
+`<g transform="translate(378.5 461.5) scale(1.15) translate(-378.5 -461.5)">
+<g fill="#000">
+${petals(379, 462)}
+</g>
+<circle cx="379" cy="462" r="66" fill="#fff" stroke="#000" stroke-width="16"/>
+</g>`,
+
+// 14 大树: 两层圆角三角树冠 + 粗树干
+`<polygon points="379,185 240,395 518,395" fill="#000" stroke="#000" stroke-width="34" stroke-linejoin="round"/>
+<polygon points="379,290 150,540 608,540" fill="#000" stroke="#000" stroke-width="34" stroke-linejoin="round"/>
+<rect x="335" y="520" width="88" height="190" rx="14" fill="#000"/>`,
+
+// 15 皮球: 黑圆 + 白色十字线 + 白色内环
+`<circle cx="379" cy="452" r="262" fill="#000"/>
+<g stroke="#fff" stroke-width="22" fill="none">
+  <line x1="117" y1="452" x2="641" y2="452"/>
+  <line x1="379" y1="190" x2="379" y2="714"/>
+  <circle cx="379" cy="452" r="118"/>
+</g>`,
+
+// 16 礼帽: 帽筒 + 宽帽檐 + 白色帽带
+`<rect x="227" y="296" width="304" height="330" rx="10" fill="#000"/>
+<rect x="117" y="612" width="524" height="52" rx="26" fill="#000"/>
+<rect x="227" y="534" width="304" height="48" fill="#fff"/>`,
+
+// 17 杯子: 微收腰杯身 (圆角杯底) + 右侧大圆弧把手
+`<path d="M 204 336 L 233 630 Q 240 668 300 672 L 458 672 Q 518 668 525 630 L 554 336 Z" fill="#000"/>
+<path d="M 549 396 A 80 80 0 1 1 536 530" stroke="#000" stroke-width="36" fill="none" stroke-linecap="round"/>`,
+
+// 18 勺子: 椭圆勺头 + 白色凹窝 + 圆头长柄 (整体放大 1.13 倍)
+`<g transform="translate(378.5 430.5) scale(1.13) translate(-378.5 -430.5)">
+<ellipse cx="379" cy="306" rx="108" ry="152" fill="#000"/>
+<ellipse cx="379" cy="306" rx="62" ry="102" fill="#fff"/>
+<rect x="351" y="430" width="56" height="278" rx="28" fill="#000"/>
+</g>`,
+
+// 19 房子: 圆角三角屋顶 + 方形屋身 + 白色拱门
+`<polygon points="379,178 127,428 631,428" fill="#000" stroke="#000" stroke-width="30" stroke-linejoin="round"/>
+<rect x="167" y="428" width="424" height="272" fill="#000"/>
+<path d="M 330 700 L 330 572 A 49 49 0 0 1 428 572 L 428 700 Z" fill="#fff"/>`,
+
+// 20 棋盘格: 4×4 黑白交替方格
+`<g fill="#000">
+${checker(379, 448, 120)}
+</g>`,
+];
+
+const NAMES = ['月亮','太阳','苹果','香蕉','五角星','爱心','同心圆','三角形','方形','雨伞',
+               '小鱼','蝴蝶','小花','大树','皮球','礼帽','杯子','勺子','房子','棋盘格'];
+
+// ---- 渲染: ?n=N 只显示第 N 张; 无参数显示全部 (调试) ----
+const params = new URLSearchParams(location.search);
+const n = parseInt(params.get('n') || '0', 10);
+const app = document.getElementById('app');
+if (n >= 1 && n <= ART.length) {
+  document.title = `卡 ${n} · ${NAMES[n - 1]}`;
+  app.innerHTML = `<div class="card">${cardSvg(NAMES[n - 1], ART[n - 1])}</div>`;
+} else {
+  app.innerHTML = ART.map((a, i) => `<div class="card">${cardSvg(NAMES[i], a)}</div>`).join('\n');
+}
+</script>
+</body>
+</html>
