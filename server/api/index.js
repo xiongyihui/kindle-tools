@@ -99,7 +99,7 @@ app.get("/panel.png", (req, res) => {
     fs.mkdirSync(cache, { recursive: true });
     const out = path.join(cache, `panel_${w}_${ip.replace(/\./g, "_")}_${ss}_${ts}.png`);
     if (fs.existsSync(out)) { res.set("Content-Type", "image/png"); res.sendFile(out); return; }
-    execFile("zsh", [path.join(ROOT, "ui", "make-ui.sh"), "single", String(w), String(h), ss, ts, out, ip],
+    execFile("bash", [path.join(ROOT, "ui", "make-ui.sh"), "single", String(w), String(h), ss, ts, out, ip],
         { timeout: 30000 }, (err) => {
         if (err || !fs.existsSync(out)) { res.status(500).send("render fail"); return; }
         res.set("Content-Type", "image/png");

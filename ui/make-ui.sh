@@ -1,30 +1,45 @@
-#!/bin/zsh
-# Remote Shell 面板 UI v5 — Apple HIG 风格 (iOS Settings 内嵌分组):
-#   浅灰画布(F2F2F7) + 白卡片 + 发丝分隔线; 每服务一行: 名称+状态副标签 + iOS开关
-#   开关: ON=黑轨白钮(右) / OFF=浅灰轨深钮(左); 状态副标签明写 Running/Stopped
-#   动态IP: 标题下方居中大字(fbink叠加带 y 11-14%)
-# 触摸区(rmsh.c 同源): 整卡 ssh y[.19,.49] telnet y[.49,.79]?? → 见 rmsh.c 实际定义
+#!/usr/bin/env bash
+# Remote Shell 面板渲染器 (bash, 跨平台: macOS / Windows-GitBash / Linux)
+# 用法: make-ui.sh                       → 生成 8 张预渲染面板到 ui/
+#       make-ui.sh single W H SSH TEL OUT [IP]  → 单张(含IP烤入)
 set -e
 cd "$(dirname "$0")"
-BOLD="/System/Library/Fonts/Supplemental/Arial Bold.ttf"
-REG="/System/Library/Fonts/Supplemental/Arial.ttf"
-[ -f "$BOLD" ] || BOLD="/System/Library/Fonts/Helvetica.ttc"
-[ -f "$REG" ] || REG="$BOLD"
-mkdir -p ui
 
-gen() { # W H sshst telst out [ip]
-  local W=$1 H=$2 SS=$3 TS=$4 O=$5
-  local IP=${6:-}
-  local TT=$((W/13))
+# 跨平台字体探测
+BOLD=""; REG=""
+for f in "/System/Library/Fonts/Supplemental/Arial Bold.ttf" \
+         "C:/Windows/Fonts/arialbd.ttf" "/c/Windows/Fonts/arialbd.ttf" \
+         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"; do
+  [ -f "$f" ] && BOLD="$f" && break
+done
+for f in "/System/Library/Fonts/Supplemental/Arial.ttf" \
+         "C:/Windows/Fonts/arial.ttf" "/c/Windows/Fonts/arial.ttf" \
+         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"; do
+  [ -f "$f" ] && REG="$f" && break
+done
+REG="${REG:-$BOLD}"
+[ -n "$BOLD" ] || { echo "错误: 找不到可用字体"; exit 1; }
+
+gen() { # W H sshst telst out [ip]   (bash 数组 0 起)
+  local W=$1 H=$2 SS=$3 TS=$4 O=$5 IP=${6:-}
   local SR=$([ "$SS" = "ON" ] && echo Running || echo Stopped)
-  local TR=$([ "$TS" = "ON" ] && echo Running || echo Stopped) NM=$((W/16)) SB=$((W/30)) FB=$((W/32)) HB=$((W/18))
+  local TR=$([ "$TS" = "ON" ] && echo Running || echo Stopped)
+  local TT=$((W/13)) NM=$((W/16)) SB=$((W/30)) FB=$((W/32)) HB=$((W/18)) BW=$((W/240+2))
 
-  # iOS 开关: 轨迹 0.125W x 0.048H, 钮 0.036W
+  local IPTXT=""
+  if [ -n "$IP" ]; then
+    IPTXT="drawtext=fontfile='$BOLD':text='${IP}':fontsize=$((W/15)):fontcolor=black:x=(w-text_w)/2:y=h*0.145"
+  else
+    IPTXT="drawtext=fontfile='$REG':text='no network':fontsize=$SB:fontcolor=0x888888:x=(w-text_w)/2:y=h*0.16"
+  fi
+
+  # iOS 开关 (bash: 数组 0 起)
   local SW=""
-  local -a STS=("$SS" "$TS")
-  local -a SY=(0.2748 0.442)   # 两行开关的轨迹 y(卡片行中心)
-  for i in 1 2; do
-    local st=${STS[$i]} sy=${SY[$i]}
+  local STS=("$SS" "$TS")
+  local SY=(0.2748 0.442)
+  local i st sy
+  for i in 0 1; do
+    st=${STS[$i]}; sy=${SY[$i]}
     local TX="iw*0.775" TW="iw*0.125" TH="ih*0.048" KN="iw*0.036"
     if [ "$st" = "ON" ]; then
       SW+=",drawbox=x=${TX}:y=ih*${sy}:w=${TW}:h=${TH}:color=black:t=fill"
@@ -35,12 +50,6 @@ gen() { # W H sshst telst out [ip]
     fi
   done
   SW="${SW#,}"
-  local IPTXT=""
-  if [ -n "$IP" ]; then
-    IPTXT="drawtext=fontfile='$BOLD':text='${IP}':fontsize=$((W/15)):fontcolor=black:x=(w-text_w)/2:y=h*0.145"
-  else
-    IPTXT="drawtext=fontfile='$REG':text='no network':fontsize=$SB:fontcolor=0x888888:x=(w-text_w)/2:y=h*0.16"
-  fi
 
   ffmpeg -y -loglevel error -f lavfi -i color=c=white:s=${W}x${H} -frames:v 1 -update 1 -vf "
     drawtext=fontfile='$BOLD':text='Remote Shell':fontsize=$TT:fontcolor=black:x=(w-text_w)/2:y=h*0.075,
@@ -60,15 +69,12 @@ gen() { # W H sshst telst out [ip]
 }
 
 if [ "$1" = "single" ]; then
-  # make-ui.sh single <W> <H> <SSH> <TEL> <out> [ip]
-  W=$2; H=$3; SS=$4; TS=$5; O=$6; IP=${7:-}
-  gen_single() { :; }
-  # 直接调用 gen (需展开局部变量作用域, gen 已在上方定义)
-  gen "$W" "$H" "$SS" "$TS" "$O" "$IP"
+  gen "$2" "$3" "$4" "$5" "$6" "$7"
   exit 0
 fi
+
 for SS in ON OFF; do for TS in ON OFF; do
-  gen 758 1024 $SS $TS ui/rmsh_758_${SS}_${TS}.png
-  gen 1072 1448 $SS $TS ui/rmsh_1072_${SS}_${TS}.png
+  gen 758 1024 $SS $TS rmsh_758_${SS}_${TS}.png
+  gen 1072 1448 $SS $TS rmsh_1072_${SS}_${TS}.png
 done; done
-echo "v5 $(ls ui | wc -l | tr -d ' ') 张生成"
+echo "生成 $(ls rmsh_*.png | wc -l | tr -d ' ') 张面板"

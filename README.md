@@ -7,9 +7,12 @@
 
 ```sh
 git clone <本仓库> && cd kindle-tools
-./server/start.sh        # ① 启动服务器(自动探测IP/生成配置/取你的公钥, 首次需联网装express)
-./prepare-usb.sh         # ② 插上 Kindle(USB), 自动写入越狱入口文件并弹出
+bash server/start.sh     # ① 启动服务器(自动探测IP/生成配置/取你的公钥, 首次需联网装express)
+bash prepare-usb.sh      # ② 插上 Kindle(USB), 自动写入越狱入口文件并弹出
 ```
+
+**前置依赖**：Node.js（必备）、ffmpeg（可选，动态面板渲染用）
+**平台**：macOS / Linux 原生 bash；**Windows 用 [Git Bash](https://git-scm.com) 运行上述命令**（脚本内已做盘符/IP/字体跨平台探测）
 
 然后在新 Kindle 上：
 3. 连上与电脑相同的 Wi-Fi，浏览器打开 `http://<电脑IP>:3000`
