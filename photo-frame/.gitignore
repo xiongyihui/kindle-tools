@@ -1,0 +1,13 @@
+# 构建产物
+photoviewer
+tapinject
+
+# 生成资产（build 时重新生成）
+photos/
+photos-hd/
+assets/
+shots/
+
+# 系统垃圾
+.DS_Store
+dep-new.tgz
