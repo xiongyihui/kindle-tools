@@ -1,0 +1,61 @@
+name: build-binaries
+on:
+  workflow_dispatch:
+  push:
+    paths: ["src/**", "dropbear/**", ".github/workflows/build-binaries.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装 zig 工具链
+        run: pip install "ziglang==0.16.0"
+
+      - name: 编译 minishelld / rmsh
+        run: |
+          ZCC="python3 -m ziglang cc -target arm-linux-musleabi -Os -static -no-pie"
+          $ZCC -o bin/minishelld src/minishelld.c
+          $ZCC -o bin/rmsh       src/rmsh.c
+          file bin/minishelld bin/rmsh
+
+      - name: 编译 dropbear (含 authorized_keys 回退补丁)
+        run: |
+          curl -fsSL --retry 3 -o /tmp/dropbear.tar.bz2 https://matt.ucc.asn.au/dropbear/releases/dropbear-2024.86.tar.bz2
+          tar -xjf /tmp/dropbear.tar.bz2 -C /tmp
+          cd /tmp/dropbear-2024.86
+          patch -p1 < "$GITHUB_WORKSPACE/dropbear/authorized_keys-fallback.patch"
+          CC="python3 -m ziglang cc -target arm-linux-musleabi" \
+            CFLAGS="-Os -static" LDFLAGS="-static" \
+            ./configure --host=arm-linux-musleabi --disable-zlib \
+              --disable-utmp --disable-utmpx --disable-wtmp --disable-wtmpx --disable-lastlog
+          make PROGRAMS="dropbear dropbearkey" -j"$(nproc)" LDFLAGS="-static -no-pie"
+          cp dropbear dropbearkey "$GITHUB_WORKSPACE/bin/"
+
+      - name: 校验产物(必须纯静态)
+        run: |
+          ls -la bin/
+          file bin/* | tee /dev/stderr | grep -qv "statically linked" && { echo "存在非静态产物!"; exit 1; } || true
+          file bin/* | grep -c "statically linked"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kindle-tools-binaries
+          path: bin/
+
+      - name: 提交变更的二进制
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bin/
+          if git diff --cached --quiet; then echo "二进制无变更"; exit 0; fi
+          git commit -m "ci: 重新编译设备二进制 [skip ci]"
+          git push
