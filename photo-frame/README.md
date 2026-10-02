@@ -31,14 +31,24 @@ kindle-tools 统一安装器（服务器 `/t`，或 WB2 网页"安装/修复 SSH
 
 安装后书库点 **Photo** 即用。
 
-## 婴儿黑白训练卡
+## 婴儿黑白训练卡（50 张）
 
-`flashcards.html`（内嵌 20 张 SVG 卡，`?n=N` 单卡渲染）是设计源；
-`./gen-flashcards.sh` 用无头 Chrome 按 758×1024 逐卡导出到 `flashcards/frame_{01..20}.png`。
-20 个主题：月亮/太阳/苹果/香蕉/星星/爱心/同心圆/三角形/方形/雨伞/小鱼/蝴蝶/小花/
-大树/皮球/礼帽/杯子/勺子/房子/棋盘格，底部中文名标注。
-改设计：编辑 flashcards.html 后重跑导出脚本即可。推送到设备 photos/ 即作为相册
-内容轮播——训练时直接左右点按翻页。
+`flashcards.html`（内嵌 50 张 SVG 卡，`?n=N` 单卡渲染）是设计源；
+`./gen-flashcards.sh` 用无头 Chrome 按 758×1024 逐卡导出到 `flashcards/frame_{01..50}.png`。
+
+- **设计系统**：图形光学中心 (379,464)、主体 ≤560px、安全区 x∈[80,678] y∈[64,880]；
+  底部 y≈946 中文名（42px 宽字距，黑底卡自动翻白）；主形 `currentColor`、挖空 `var(--bg)`，
+  按 DARK 集一键黑白翻转。四大分组：1-16 几何启蒙 / 17-28 天地自然 / 29-40 动物朋友 /
+  41-50 生活物件；11 张黑底卡穿插（7,16,18,20,24,26,28,31,35,37,48，互不相邻）。
+- **导出即校验**（PIL 像素实测，不靠肉眼）：尺寸/四角背景纯度/图形安全区/标注带居中
+  (379±5)/图注间空带干净/画布四边无贴边墨迹/黑底卡不相邻。
+- 改设计：编辑 flashcards.html 后重跑导出脚本即可。推送到设备 photos/ 即作为相册
+  内容轮播——训练时直接左右点按翻页：
+
+```sh
+COPYFILE_DISABLE=1 tar czf - -C flashcards . | ssh root@<ip> \
+  'rm -f /mnt/us/photo-kit/photos/*; tar xzf - -C /mnt/us/photo-kit/photos && rm -f /mnt/us/photo-kit/photos/._*'
+```
 
 ## 替换成自己的照片
 
