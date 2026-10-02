@@ -14,14 +14,14 @@ cp -f $SRC/bin/dropbear    $S/bin/dropbear
 cp -f $SRC/bin/dropbearkey $S/bin/dropbearkey
 cp -f $SRC/bin/minishelld  $T/minishelld
 cp -f $SRC/bin/rmsh        $T/rmsh
-cp -f $SRC/device/boot.sh $SRC/device/poll.sh $SRC/device/watchdog.sh $T/
+cp -f $SRC/device/boot.sh $T/
 cp -f $SRC/ui/rmsh_*.png $T/ui/
 chmod +x $S/bin/* $T/rmsh $T/minishelld $T/*.sh
 # 入口
 cp -f $SRC/Remote\ Shell.sh /mnt/us/documents/ 2>/dev/null && chmod +x "/mnt/us/documents/Remote Shell.sh"
 # 配置: 仓库 local/config.sh 优先, 否则用默认(ssh开/telnet关/轮询关-离线)
 if [ -f $SRC/local/config.sh ]; then cp -f $SRC/local/config.sh $T/config.sh
-else printf 'ENABLE_SSH=1\nENABLE_TELNET=0\nENABLE_POLL=0\nSSH_PORT=22\nTELNET_PORT=23\nSRV_IP=192.168.31.191\nSRV_PORT=3000\n' > $T/config.sh
+else printf 'ENABLE_SSH=1\nENABLE_TELNET=0\nSSH_PORT=22\nTELNET_PORT=23\n' > $T/config.sh
 fi
 
 echo "[2/5] 防休眠 + 防火墙..."

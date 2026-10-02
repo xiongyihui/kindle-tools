@@ -4,7 +4,6 @@
 
 ENABLE_SSH=1        # ssh:    dropbear,   Mac: ssh root@<kindle>
 ENABLE_TELNET=0     # telnet: minishelld, Mac: telnet <kindle>
-ENABLE_POLL=1       # 命令轮询(管理通道, 服务器经 /cmd 驱动设备)
 
 SSH_PORT=22
 TELNET_PORT=23

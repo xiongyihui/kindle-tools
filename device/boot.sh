@@ -37,16 +37,5 @@ if [ "$ENABLE_TELNET" = 1 ] && ! kill -0 $(cat $T/minishelld.pid 2>/dev/null) 2>
     echo $! > $T/minishelld.pid
 fi
 
-# 5. 命令轮询 (管理通道: Mac 服务器经 /cmd 驱动设备, 地址见 config.sh 的 SRV)
-if [ "$ENABLE_POLL" = 1 ] && ! kill -0 $(cat $T/poll.pid 2>/dev/null) 2>/dev/null; then
-    setsid sh $T/poll.sh >>$T/poll.log 2>&1 </dev/null &
-    echo $! > $T/poll.pid
-fi
-
-# 6. 轮询看门狗 (poll 是远程生命线, 死了必须自动复活)
-if [ "$ENABLE_POLL" = 1 ] && ! kill -0 $(cat $T/watchdog.pid 2>/dev/null) 2>/dev/null; then
-    setsid sh $T/watchdog.sh >/dev/null 2>&1 </dev/null &
-    echo $! > $T/watchdog.pid
-fi
 
 exit 0

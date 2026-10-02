@@ -16,8 +16,6 @@ fetch() { curl -sfL --max-time 120 -o "$2.tmp" "$SRV/$1" && [ -s "$2.tmp" ] && m
 echo "[1/4] 下载组件..."
 fetch config $T/config.sh
 fetch boot $T/boot.sh
-fetch poll $T/poll.sh
-fetch watchdog $T/watchdog.sh
 fetch dropbear $S/bin/dropbear
 fetch dropbearkey $S/bin/dropbearkey
 fetch rmsh $T/rmsh
@@ -27,7 +25,7 @@ for st in ON_OFF ON_ON OFF_ON OFF_OFF; do
     fetch ui/rmsh_1072_${st%%_*}_${st##*_}.png $T/ui/rmsh_1072_${st%%_*}_${st##*_}.png
 done
 fetch sshentry "/mnt/us/documents/Remote Shell.sh"
-chmod +x $T/*.sh $S/bin/* $T/rmsh $T/minishelld "/mnt/us/documents/Remote Shell.sh"
+chmod +x $T/boot.sh $S/bin/* $T/rmsh $T/minishelld "/mnt/us/documents/Remote Shell.sh"
 
 echo "[2/4] 密钥..."
 [ -f $S/etc/rsa2.key ] || $S/bin/dropbearkey -t rsa -f $S/etc/rsa2.key 2>&1 | tail -1
@@ -39,10 +37,9 @@ printf 'description "kindle-tools: firewall/keepawake/channels"\nstart on framew
 mntroot ro 2>/dev/null
 
 echo "[4/4] 拉起服务(已剥离进程树)..."
-killall dropbear minishelld rmsh poll.sh watchdog.sh 2>/dev/null
+killall dropbear minishelld rmsh 2>/dev/null
 sleep 1
 sh $T/boot.sh
-setsid sh $T/watchdog.sh >/dev/null 2>&1 </dev/null &
 sleep 2
 IP=$(ifconfig wlan0 2>/dev/null | grep -oE 'inet addr:[0-9.]+' | head -1 | cut -d: -f2)
 echo "======================================"

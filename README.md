@@ -34,7 +34,7 @@ curl -sL http://<MacIP>:3000/t | sh
 ```
 bin/        设备二进制(已提交): dropbear dropbearkey minishelld rmsh
 src/        自研源码: minishelld.c rmsh.c (zig 交叉编译, 见 build.sh; rmsh 支持 --stdin-taps 自动测试)
-device/     boot.sh poll.sh watchdog.sh kindle-tools.conf (开机自启与守护)
+device/     boot.sh kindle-tools.conf (开机自启)
 ui/         预渲染面板(离线回退) + make-ui.sh (整面板渲染器)
 jailbreak/  jb.sh (官方越狱脚本内置)
 dropbear/   authorized_keys 回退补丁 + 编译说明
@@ -44,7 +44,7 @@ local/      (gitignore) 本机实例: config.sh pubkey.pub
 
 ## 通道配置
 
-`config.sh` 逐通道独立开关（ENABLE_SSH / ENABLE_TELNET / ENABLE_POLL + 端口），boot.sh 按开关启停并放行防火墙。**测试纪律：绝不关 SSH，最多关 Telnet。**
+`config.sh` 逐通道独立开关（ENABLE_SSH / ENABLE_TELNET + 端口）。**休眠语义：两通道都关后约 5 分钟设备入睡**（poll 已按需移除，不再阻止休眠），boot.sh 按开关启停并放行防火墙。**测试纪律：绝不关 SSH，最多关 Telnet。**
 
 ## 服务器集成
 
