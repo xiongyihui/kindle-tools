@@ -1,57 +1,61 @@
 # kindle-tools
 
-越狱 Kindle 的远程访问工具集，**仓库即完整交付物**：设备所需的全部脚本与二进制都在这里，装完后运行不依赖网络。
+越狱 Kindle 并开启 Remote Shell（ssh / telnet / 触屏管理面板）的一站式工具仓库。
+**clone 即用**：设备所需全部脚本与二进制都在仓库里，服务器自动配置，越狱脚本内置不依赖外网。
 
-## 完整流程（三步）
+## 快速开始（对一台未越狱的 Kindle）
 
-### ① 越狱（未越狱设备，需 Mac 服务器）
 ```sh
-cd ../Winterbreak2 && ../启动越狱服务器.command   # 或直接 nohup node api/index.js
-# Kindle 浏览器打开 http://<MacIP>:3000 → 点 "Jailbreak 越狱"
-```
-越狱脚本已内置（`jailbreak/jb.sh`，v1.3.7），无需外网。
-
-### ② 安装 kindle-tools（二选一）
-
-**离线方式（零网络）**：
-1. 把 `kindle-tools/` 整个文件夹拷到 Kindle USB 根目录
-2. （可选）建 `local/pubkey.pub`（你的 ssh 公钥）与 `local/config.sh`（从 config.sh.example 复制填写）
-3. 把 `Install-Kindle-Tools.sh` 拷到 Kindle 的 `documents/`
-4. 书库点 **Install-Kindle-Tools** → 自动装好全部组件
-
-**在线方式（服务器在跑时）**：kterm 或越狱完成页跑
-```sh
-curl -sL http://<MacIP>:3000/t | sh
+git clone <本仓库> && cd kindle-tools
+./server/start.sh        # ① 启动服务器(自动探测IP/生成配置/取你的公钥, 首次需联网装express)
+./prepare-usb.sh         # ② 插上 Kindle(USB), 自动写入越狱入口文件并弹出
 ```
 
-### ③ 使用
-- `ssh root@<KindleIP>`（免密）
-- 书库 **Remote Shell** = 触屏管理面板（开关 ssh/telnet、看 IP；面板由服务器整体渲染，离线自动降级为本地预生成图）
-- 开机自启（upstart framework_ready）已内置，重启免配置
+然后在新 Kindle 上：
+3. 连上与电脑相同的 Wi-Fi，浏览器打开 `http://<电脑IP>:3000`
+4. 点 **Jailbreak 越狱**（官方 jb.sh v1.3.7，从本机拉取）
+5. 越狱完成后点 **安装 / 修复 SSH**（同一浏览器，装 kindle-tools 全套）
+6. `ssh root@<KindleIP>` 免密登录完成 ✅
+
+已越狱的设备可跳过 ①②④，直接在 kterm 里跑：
+```sh
+curl -sL http://<电脑IP>:3000/t | sh
+```
+
+无网络环境的离线安装：把仓库文件夹拷到 Kindle 根目录 + `Install-Kindle-Tools.sh` 拷到 documents/，书库点按即装（`local/pubkey.pub` 需提前放入）。
+
+## 支持范围
+
+- 实测：PaperWhite 2（5.12.2.2 / 内核 3.0.35）、PaperWhite 3/4 代（5.16.2.1.1 / 300dpi）
+- 越狱利用：WinterBreak2（浏览器下载漏洞），适用固件以 [kindlemodding](https://kindlemodding.org) 为准
+- 二进制：arm-linux-musleabi 纯静态（zig 编译，见 build.sh），不依赖设备 libc
 
 ## 仓库结构
 
 ```
-bin/        设备二进制(已提交): dropbear dropbearkey minishelld rmsh
-src/        自研源码: minishelld.c rmsh.c (zig 交叉编译, 见 build.sh; rmsh 支持 --stdin-taps 自动测试)
-device/     boot.sh kindle-tools.conf (开机自启)
-ui/         预渲染面板(离线回退) + make-ui.sh (整面板渲染器)
-jailbreak/  jb.sh (官方越狱脚本内置)
-dropbear/   authorized_keys 回退补丁 + 编译说明
-deploy/     recovery.sh.template (服务器恢复脚本模板)
-local/      (gitignore) 本机实例: config.sh pubkey.pub
+server/     越狱入口+分发服务器(Express; start.sh 一键启动)
+jailbreak/  jb.sh 官方越狱脚本 + winterbreak2/dialoger.html 入口模板(__SERVER__占位)
+bin/        设备二进制: dropbear dropbearkey minishelld rmsh
+src/        自研源码(minishelld/rmsh, zig 交叉编译; rmsh 支持 --stdin-taps 自动测试)
+device/     boot.sh kindle-tools.conf(开机自启: 防休眠+防火墙+按配置拉起)
+ui/         预渲染面板(离线回退) + make-ui.sh(整面板按屏宽渲染, IP/状态烤入)
+dropbear/   authorized_keys 只读rootfs回退补丁 + 编译说明
+deploy/     recovery.sh.template(唯一安装器, /t 与 /jb.sh install 模式同源)
+local/      (gitignore, 自动生成) config.sh pubkey.pub recovery.sh mode.txt
 ```
 
-## 通道配置
+## 日常使用
 
-`config.sh` 逐通道独立开关（ENABLE_SSH / ENABLE_TELNET + 端口）。**休眠语义：两通道都关后约 5 分钟设备入睡**（poll 已按需移除，不再阻止休眠），boot.sh 按开关启停并放行防火墙。**测试纪律：绝不关 SSH，最多关 Telnet。**
+- `ssh root@<KindleIP>`（免密）；书库 **Remote Shell** = 触屏面板（开关 ssh/telnet、显示 IP，面板由服务器整体渲染，离线自动降级）
+- 通道开关在 `local/config.sh`（ENABLE_SSH / ENABLE_TELNET + 端口），boot.sh 按开关启停+放行防火墙
+- **休眠语义**：ssh 与 telnet 都关后约 5 分钟设备入睡；任一在开则保持清醒
+- 开机自启内置（upstart framework_ready），重启免配置
+- 改面板后删 `ui-cache/` 才会重新渲染
 
-## 服务器集成
+## 测试纪律
 
-`../Winterbreak2/api/index.js` 的所有分发路由（/dropbear /rmsh /ui /panel.png /jb.sh…）均指向本仓库 —— 单一事实源，改这里即全设备生效（panel 渲染有 ui-cache/，改 make-ui.sh 后清缓存）。
+自动测试**绝不同时关 ssh 与 telnet**；优先操作 telnet。
 
-## 硬件适配说明
-
-- 二进制: arm-linux-musleabi 纯静态（-static -no-pie），PW2(3.0.35 内核) 与 PW3/4 实测可跑
-- 面板: 服务器按屏宽整图渲染（/panel.png?w=），任意分辨率适配；离线回退 758/1072 两套预生成图
-- 已知限制: fbink 文字在高分屏物理尺寸受限（-S 以 8px 基数缩放）、-y 行高随设备字体变化 —— 均已被整面板渲染方案绕开
+__zcode_status=$?
+if [ "$__zcode_status" -eq 0 ]; then pwd -P > '/var/folders/6x/8kg5czr51lj0t2__2xy86nsc0000gn/T/zcode-bdd0f8ba-1cf3-4024-b036-f2fd8dfd485a-cwd'; fi
+exit "$__zcode_status"

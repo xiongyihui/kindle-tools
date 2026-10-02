@@ -1,0 +1,10 @@
+{
+  "name": "kindle-tools-server",
+  "version": "1.0.0",
+  "description": "Kindle 越狱入口 + kindle-tools 分发服务器",
+  "type": "module",
+  "main": "api/index.js",
+  "scripts": { "start": "node api/index.js" },
+  "dependencies": { "express": "^5.1.0" },
+  "license": "ISC"
+}

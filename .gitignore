@@ -4,3 +4,5 @@ ui-cache/
 *.log
 *.pid
 __pycache__/
+server/node_modules/
+local/placeholder.mobi
