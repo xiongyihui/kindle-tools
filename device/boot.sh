@@ -7,7 +7,7 @@ S=/mnt/us/ssh
 
 # 载入配置(缺失时用默认值)
 [ -f $T/config.sh ] && . $T/config.sh
-: ${ENABLE_SSH:=1}; : ${ENABLE_TELNET:=0}; : ${ENABLE_POLL:=1}
+: ${ENABLE_SSH:=1}; : ${ENABLE_TELNET:=0}
 : ${SSH_PORT:=22};  : ${TELNET_PORT:=23}
 
 fw_open() { # $1=端口
@@ -25,16 +25,16 @@ lipc-set-prop -i com.lab126.powerd touchScreenSaverTimeout 86400 2>/dev/null
 iptables -C INPUT -i wlan0 -p icmp -j ACCEPT 2>/dev/null || \
     iptables -I INPUT 1 -i wlan0 -p icmp -j ACCEPT
 
-# 3. ssh (dropbear, 仅密钥登录) — 已在跑则不动
-if [ "$ENABLE_SSH" = 1 ] && ! kill -0 $(cat $S/pid 2>/dev/null) 2>/dev/null; then
+# 3. ssh (dropbear, 仅密钥登录) — 已在跑则不动 (pidof 检查, 不依赖 pid 文件:
+#    历史版本 pid 文件追加累积且检查只看第一个, 死过一次后判定不可靠)
+if [ "$ENABLE_SSH" = 1 ] && ! pidof dropbear >/dev/null 2>&1; then
     [ -f $S/etc/rsa2.key ] || $S/bin/dropbearkey -t rsa -f $S/etc/rsa2.key
     setsid $S/bin/dropbear -r $S/etc/rsa2.key -p $SSH_PORT -s -E >>$S/log 2>&1 </dev/null &
 fi
 
 # 4. telnet (minishelld)
-if [ "$ENABLE_TELNET" = 1 ] && ! kill -0 $(cat $T/minishelld.pid 2>/dev/null) 2>/dev/null; then
+if [ "$ENABLE_TELNET" = 1 ] && ! pidof minishelld >/dev/null 2>&1; then
     $T/minishelld $TELNET_PORT >>$T/minishelld.log 2>&1 &
-    echo $! > $T/minishelld.pid
 fi
 
 
