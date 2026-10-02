@@ -32,8 +32,8 @@ curl -sL http://<MacIP>:3000/t | sh
 ## 仓库结构
 
 ```
-bin/        设备二进制(已提交): dropbear dropbearkey minishelld rmsh tinject
-src/        自研源码: minishelld.c rmsh.c tinject.c (zig 交叉编译, 见 build.sh)
+bin/        设备二进制(已提交): dropbear dropbearkey minishelld rmsh
+src/        自研源码: minishelld.c rmsh.c (zig 交叉编译, 见 build.sh; rmsh 支持 --stdin-taps 自动测试)
 device/     boot.sh poll.sh watchdog.sh kindle-tools.conf (开机自启与守护)
 ui/         预渲染面板(离线回退) + make-ui.sh (整面板渲染器)
 jailbreak/  jb.sh (官方越狱脚本内置)

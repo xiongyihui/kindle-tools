@@ -28,7 +28,7 @@ iptables -C INPUT -i wlan0 -p icmp -j ACCEPT 2>/dev/null || \
 # 3. ssh (dropbear, 仅密钥登录) — 已在跑则不动
 if [ "$ENABLE_SSH" = 1 ] && ! kill -0 $(cat $S/pid 2>/dev/null) 2>/dev/null; then
     [ -f $S/etc/rsa2.key ] || $S/bin/dropbearkey -t rsa -f $S/etc/rsa2.key
-    $S/bin/dropbear -r $S/etc/rsa2.key -p $SSH_PORT -s -E >>$S/log 2>&1
+    setsid $S/bin/dropbear -r $S/etc/rsa2.key -p $SSH_PORT -s -E >>$S/log 2>&1 </dev/null &
 fi
 
 # 4. telnet (minishelld)

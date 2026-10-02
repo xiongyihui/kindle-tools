@@ -14,10 +14,9 @@ cp -f $SRC/bin/dropbear    $S/bin/dropbear
 cp -f $SRC/bin/dropbearkey $S/bin/dropbearkey
 cp -f $SRC/bin/minishelld  $T/minishelld
 cp -f $SRC/bin/rmsh        $T/rmsh
-cp -f $SRC/bin/tinject     $T/tinject
 cp -f $SRC/device/boot.sh $SRC/device/poll.sh $SRC/device/watchdog.sh $T/
 cp -f $SRC/ui/rmsh_*.png $T/ui/
-chmod +x $S/bin/* $T/rmsh $T/minishelld $T/tinject $T/*.sh
+chmod +x $S/bin/* $T/rmsh $T/minishelld $T/*.sh
 # 入口
 cp -f $SRC/Remote\ Shell.sh /mnt/us/documents/ 2>/dev/null && chmod +x "/mnt/us/documents/Remote Shell.sh"
 # 配置: 仓库 local/config.sh 优先, 否则用默认(ssh开/telnet关/轮询关-离线)
