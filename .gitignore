@@ -1,4 +1,6 @@
-bin/
 config.sh
+local/
+ui-cache/
 *.log
 *.pid
+__pycache__/

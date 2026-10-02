@@ -1,58 +1,57 @@
 # kindle-tools
 
-越狱 Kindle（PW2 / 5.12.2.2 / 内核 3.0.35 实测）的远程访问工具集：
-静态编译的 ssh/telnet 服务 + 开机自启 + 通道独立配置。
-配套的分发服务器见上层目录 `Winterbreak2/`（README 见工作区根）。
+越狱 Kindle 的远程访问工具集，**仓库即完整交付物**：设备所需的全部脚本与二进制都在这里，装完后运行不依赖网络。
 
-## 通道（独立配置）
+## 完整流程（三步）
 
-`config.sh`（模板 `config.sh.example`，真实文件不入库）逐通道开关：
-
-| 通道 | 程序 | 默认 | 端口 | 连接 |
-|---|---|---|---|---|
-| ssh | dropbear（含补丁） | 开 | 22 | `ssh root@<kindle>` |
-| telnet | minishelld | 关 | 23 | `telnet <kindle>` |
-| 轮询（管理） | poll.sh | 开 | — | 服务器 `/cmd` 下发、`/report` 回传 |
-
-## 设备侧布局
-
-```
-/mnt/us/kindle-tools/   boot.sh poll.sh config.sh [minishelld] *.pid *.log
-/mnt/us/ssh/            bin/dropbear bin/dropbearkey etc/rsa2.key authorized_keys log pid
-/etc/upstart/kindle-tools.conf   (start on framework_ready → boot.sh)
-```
-
-boot.sh 每次开机：防休眠 → 按 config 放行防火墙（INPUT 默认 DROP）→ 按开关拉起各通道。
-全部幂等，已运行的进程不动。
-
-## 编译
-
-前置：`pip3 install ziglang`（zig 工具链，PyPI 秒装）。
-
+### ① 越狱（未越狱设备，需 Mac 服务器）
 ```sh
-./build.sh          # src/ 与 dropbear/src/ → bin/
+cd ../Winterbreak2 && ../启动越狱服务器.command   # 或直接 nohup node api/index.js
+# Kindle 浏览器打开 http://<MacIP>:3000 → 点 "Jailbreak 越狱"
 ```
+越狱脚本已内置（`jailbreak/jb.sh`，v1.3.7），无需外网。
 
-均为 arm-linux-musleabi 纯静态（`-static -no-pie`），不依赖设备 libc。
-dropbear 的 authorized_keys 回退补丁见 `dropbear/`。
+### ② 安装 kindle-tools（二选一）
 
-## 部署 / 恢复
+**离线方式（零网络）**：
+1. 把 `kindle-tools/` 整个文件夹拷到 Kindle USB 根目录
+2. （可选）建 `local/pubkey.pub`（你的 ssh 公钥）与 `local/config.sh`（从 config.sh.example 复制填写）
+3. 把 `Install-Kindle-Tools.sh` 拷到 Kindle 的 `documents/`
+4. 书库点 **Install-Kindle-Tools** → 自动装好全部组件
 
-正常路径走服务器（kterm 里一行）：
-
+**在线方式（服务器在跑时）**：kterm 或越狱完成页跑
 ```sh
-curl -sL http://<服务器>:3000/t | sh
+curl -sL http://<MacIP>:3000/t | sh
 ```
 
-`deploy/recovery.sh.template` 是该脚本的模板——替换 `YOUR_MAC_IP` 后放入服务器分发目录。
-真实 `config.sh`、公钥（`/pubkey` 路由）同样只放在服务器侧，**本仓库不含任何机器相关信息**。
+### ③ 使用
+- `ssh root@<KindleIP>`（免密）
+- 书库 **Remote Shell** = 触屏管理面板（开关 ssh/telnet、看 IP；面板由服务器整体渲染，离线自动降级为本地预生成图）
+- 开机自启（upstart framework_ready）已内置，重启免配置
 
-## 已踩过的坑（这台设备）
+## 仓库结构
 
-- 亚马逊固件 iptables INPUT 默认 DROP，只放行 ESTABLISHED → 必须显式放行端口
-- 自动休眠会冻结 Wi-Fi → boot.sh 先设 preventScreenSaver
-- rootfs 只读 → 公钥走补丁里的 /mnt/us 回退路径；upstart 需 `mntroot rw` 写 `/etc/upstart`
-- upstart 事件是 `framework_ready`；`/var/local/upstart` 不被读取
-- 官方 ttyd.arm 在 Cortex-A9 上 SIGILL；kpkg dropbear 动态链接跑不动
-- 覆盖运行中的二进制会 ETXTBSY → 先 .tmp 再 mv
-- 设备无 scp/sftp-server，传文件用 curl 拉
+```
+bin/        设备二进制(已提交): dropbear dropbearkey minishelld rmsh tinject
+src/        自研源码: minishelld.c rmsh.c tinject.c (zig 交叉编译, 见 build.sh)
+device/     boot.sh poll.sh watchdog.sh kindle-tools.conf (开机自启与守护)
+ui/         预渲染面板(离线回退) + make-ui.sh (整面板渲染器)
+jailbreak/  jb.sh (官方越狱脚本内置)
+dropbear/   authorized_keys 回退补丁 + 编译说明
+deploy/     recovery.sh.template (服务器恢复脚本模板)
+local/      (gitignore) 本机实例: config.sh pubkey.pub
+```
+
+## 通道配置
+
+`config.sh` 逐通道独立开关（ENABLE_SSH / ENABLE_TELNET / ENABLE_POLL + 端口），boot.sh 按开关启停并放行防火墙。**测试纪律：绝不关 SSH，最多关 Telnet。**
+
+## 服务器集成
+
+`../Winterbreak2/api/index.js` 的所有分发路由（/dropbear /rmsh /ui /panel.png /jb.sh…）均指向本仓库 —— 单一事实源，改这里即全设备生效（panel 渲染有 ui-cache/，改 make-ui.sh 后清缓存）。
+
+## 硬件适配说明
+
+- 二进制: arm-linux-musleabi 纯静态（-static -no-pie），PW2(3.0.35 内核) 与 PW3/4 实测可跑
+- 面板: 服务器按屏宽整图渲染（/panel.png?w=），任意分辨率适配；离线回退 758/1072 两套预生成图
+- 已知限制: fbink 文字在高分屏物理尺寸受限（-S 以 8px 基数缩放）、-y 行高随设备字体变化 —— 均已被整面板渲染方案绕开
