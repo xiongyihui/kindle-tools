@@ -24,6 +24,8 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
+#include <signal.h>
 #include <time.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -56,6 +58,11 @@ static int sel_row = 3;
 static int quit_req = 0;
 static time_t last_auto = 0;
 static int sleep_mode = 0;      /* 省电模式: RTC 定时深睡换图 (2026-10-02 实证链路) */
+static int pwfd = -1;           /* 电源键 (max77696-onkey): 按下=退出回 home 的逃生通道 */
+static volatile sig_atomic_t g_power = 0;
+
+/* 电源键/SIGUSR1 共用退出路径 (SIGUSR1 = 远程测试钩子) */
+static void on_power_sig(int s) { (void)s; g_power = 1; }
 
 /* 深睡一轮: 写 RTC 闹钟 → 停 powerd(解除 mem 的 EBUSY 锁) → 深睡 → 恢复 powerd。
  * 醒来源: RTC 到点(实证精确) 或 电源键; 触摸不唤醒深睡。
@@ -219,6 +226,25 @@ static int ev_poll(int *ox, int *oy) {
     return hit;
 }
 
+/* 电源键设备 (max77696-onkey, event0): ev_open 会跳过它, 这里专门打开 */
+static int pw_open(void) {
+    for (int i = 0; i < 8; i++) {
+        char path[32];
+        snprintf(path, sizeof(path), "/dev/input/event%d", i);
+        int f = open(path, O_RDONLY | O_NONBLOCK);
+        if (f < 0) continue;
+        char name[64] = "";
+        ioctl(f, EVIOCGNAME(sizeof(name) - 1), name);
+        if (strstr(name, "onkey")) {
+            fprintf(stderr, "power-key: %s (%s) — 按下=退出回 home\n", path, name);
+            return f;
+        }
+        close(f);
+    }
+    fprintf(stderr, "power-key: 未找到 onkey 设备, 电源键退出不可用\n");
+    return -1;
+}
+
 /* ================= 相册逻辑 (沿用 photoviewer.c) ================= */
 static int cmpstr(const void *a, const void *b) {
     return strcmp(*(char *const *)a, *(char *const *)b);
@@ -377,6 +403,16 @@ int main(int argc, char **argv) {
     fprintf(stderr, "viewer-x: %d images, auto=%ds, fbink=%s\n", nimgs, auto_sec, fbink);
     system("lipc-set-prop -i com.lab126.powerd preventScreenSaver 1 2>/dev/null");
 
+    /* 电源键逃生 + SIGUSR1 远程测试钩子: 按下=干净退出, Photo.sh 的 show_ui 恢复 home */
+    {
+        struct sigaction sa;
+        memset(&sa, 0, sizeof(sa));
+        sa.sa_handler = on_power_sig;
+        sigaction(SIGUSR1, &sa, NULL);
+        sigaction(SIGINT, &sa, NULL);
+        pwfd = pw_open();
+    }
+
     /* 防御: 设置页资产缺失时提前告警(避免 fbink 静默失败后屏幕残留旧画面) */
     {
         char p[128];
@@ -398,10 +434,29 @@ int main(int argc, char **argv) {
         int maxfd = -1;
         if (xfd >= 0) { FD_SET(xfd, &rfds); if (xfd > maxfd) maxfd = xfd; }
         if (evfd >= 0) { FD_SET(evfd, &rfds); if (evfd > maxfd) maxfd = evfd; }
+        if (pwfd >= 0) { FD_SET(pwfd, &rfds); if (pwfd > maxfd) maxfd = pwfd; }
         struct timeval tv = {1, 0};
         int r = select(maxfd + 1, &rfds, NULL, NULL, &tv);
-        if (r < 0) break;
+        if (r < 0) {
+            if (errno == EINTR) {
+                if (g_power) {
+                    fprintf(stderr, "[power] SIGUSR1 -> exit-to-home\n");
+                    quit_req = 1;
+                }
+                continue;
+            }
+            break;
+        }
 
+        if (pwfd >= 0 && FD_ISSET(pwfd, &rfds)) {
+            struct input_event pev;
+            while (read(pwfd, &pev, sizeof(pev)) == sizeof(pev)) {
+                if (pev.type == EV_KEY && pev.code == KEY_POWER && pev.value == 1) {
+                    fprintf(stderr, "[power] pressed -> exit-to-home\n");
+                    quit_req = 1;
+                }
+            }
+        }
         if (xfd >= 0 && FD_ISSET(xfd, &rfds)) {
             unsigned char ev[32];
             int n = read(xfd, ev, 32);
@@ -447,6 +502,7 @@ int main(int argc, char **argv) {
     }
     if (xfd >= 0) close(xfd);   /* 断连即自动释放 grab */
     if (evfd >= 0) close(evfd);
-    printf("[viewer] 退出\n");
+    if (pwfd >= 0) close(pwfd);
+    printf("[viewer] 退出%s\n", g_power || quit_req ? "(power->home)" : "");
     return 0;
 }

@@ -59,14 +59,15 @@ local/      (gitignore, 自动生成) config.sh pubkey.pub recovery.sh mode.txt
 ## 日常使用
 
 - `ssh root@<KindleIP>`（免密）；书库 **Remote Shell** = 触屏面板（开关 ssh/telnet、显示 IP，面板由服务器整体渲染，离线自动降级）
-- 通道开关在 `local/config.sh`（ENABLE_SSH / ENABLE_TELNET + 端口），boot.sh 按开关启停+放行防火墙
+- 通道开关的单一事实源 = 设备 `/mnt/us/kindle-tools/config.sh`：面板开关 = 写 config + 重跑 boot.sh；boot.sh 按开关对称 启动/停止 服务、放行/撤除 防火墙、管理 watchdog（每轮重读 config，只在 `ENABLE_SSH=1` 时保活 dropbear）。状态跨重启保持
+- **电源键逃生**：Remote Shell 面板和 Photo 界面内按 power 键 = 应用立即退出，交给系统休眠/唤醒流程回 home（唤醒时框架必定全屏重绘；任何自绘恢复都无法触发框架重绘，勿再尝试）
 - **休眠语义**：ssh 与 telnet 都关后约 5 分钟设备入睡；任一在开则保持清醒
 - 开机自启内置（upstart framework_ready），重启免配置
 - 改面板后删 `ui-cache/` 才会重新渲染
 
 ## 测试纪律
 
-自动测试**绝不同时关 ssh 与 telnet**；优先操作 telnet。
+自动测试**绝不同时关 ssh 与 telnet**；优先操作 telnet。杀 dropbear/改通道的 boot.sh 必须脱离 ssh 会话 detached 跑（killall 会切断自己的会话）。
 
 __zcode_status=$?
 if [ "$__zcode_status" -eq 0 ]; then pwd -P > '/var/folders/6x/8kg5czr51lj0t2__2xy86nsc0000gn/T/zcode-bdd0f8ba-1cf3-4024-b036-f2fd8dfd485a-cwd'; fi

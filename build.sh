@@ -4,7 +4,11 @@ set -e
 cd "$(dirname "$0")"
 ZCC="python3 -m ziglang cc -target arm-linux-musleabi -Os -static -no-pie"
 
+echo "==> rmsh (Remote Shell 面板)"
+$ZCC -o bin/rmsh src/rmsh.c
+
 echo "==> minishelld (telnet 通道)"
+$ZCC -o bin/minishelld src/minishelld.c
 
 echo "==> dropbear 2024.86 (含 authorized_keys 回退补丁)"
 if [ -d dropbear/src ]; then
