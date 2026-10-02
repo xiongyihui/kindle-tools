@@ -62,7 +62,8 @@ static void get_ip(char *out, size_t n) {
 
 static void keepawake(int on) {
     runcmd("lipc-set-prop -i com.lab126.powerd preventScreenSaver %d 2>/dev/null", on ? 1 : 0);
-    if (on) runcmd("lipc-set-prop -i com.lab126.powerd touchScreenSaverTimeout 86400 2>/dev/null");
+    /* 休眠超时必须同步恢复, 否则 86400 会残留导致关服务后 24h 不睡 */
+    runcmd("lipc-set-prop -i com.lab126.powerd touchScreenSaverTimeout %d 2>/dev/null", on ? 86400 : 300);
 }
 
 static void sync_keepawake(void) { keepawake(ssh_on() || telnet_on()); }
