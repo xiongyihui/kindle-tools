@@ -21,21 +21,28 @@ pip3 install ziglang   # 一次性
 ./build.sh             # 产出 photoviewer + tapinject (ARM 静态 musl)
 ```
 
-## 生成与部署
+## 安装（自动，随 ssh 一起）
+
+kindle-tools 统一安装器（服务器 `/t`，或 WB2 网页"安装/修复 SSH"按钮）装 ssh 时自动完成：
+- viewer / Photo.sh 书库入口 / 12 张设置页 PNG（按设备分辨率自动选 758/1072）
+- **5 张灰阶测试图**（服务器动态生成：渐变/径向/16 级灰阶/网格，开箱即看效果，
+  图上自带替换提示）——无需先准备照片
+- 默认 conf（600 秒轮播、省电关）
+
+安装后书库点 **Photo** 即用。
+
+## 替换成自己的照片
 
 ```sh
-./process-photos.sh                          # 老机 758×1024 → photos/
-SCREEN_W=1072 SCREEN_H=1448 OUT=photos-hd ./process-photos.sh
-./gen-settings.sh                            # 设置页 12 张 PNG
-
-# 老机: photos/ + settings-r*-758.png; 新机: photos-hd/ + settings-r*-1072.png
-tar czf - -C 本地目录 . | ssh root@<ip> '
-  mkdir -p /mnt/us/photo-kit/settings && tar xzf - -C /mnt/us/photo-kit &&
-  find /mnt/us/photo-kit -name "._*" -delete && chmod +x /mnt/us/photo-kit/photoviewer'
-# settings PNG 按设备重命名为 settings/r{0..5}.png; Photo.sh 原子写入 documents/
+cd kindle-tools/photo-frame
+./process-photos.sh ~/Pictures/你的照片目录        # 老机 758×1024 → photos/
+SCREEN_W=1072 SCREEN_H=1448 OUT=photos-hd ./process-photos.sh  # 新机版
+# 推送(覆盖设备上的测试图), 推送后重开 Photo 生效:
+tar czf - -C photos . | ssh root@<ip> 'rm -f /mnt/us/photo-kit/photos/*; tar xzf - -C /mnt/us/photo-kit/photos && rm -f /mnt/us/photo-kit/photos/._*'
 ```
-大包用 `ssh 'tar xzf - -C 目标' < 本地.tgz` 流式传输（新机 /tmp 放不下 33MB）。
-
+源照片支持 JPG/HEIC/PNG（自动 EXIF 转正 + 全屏裁切 + 灰阶优化）。
+设置页布局若改过：`./gen-settings.sh` 重新生成，把 assets 中对应尺寸 12 张传到
+设备 `settings/r{0..5}s{0|1}.png`。改代码后 `./build.sh` 构建，原子写推送同名路径。
 ## 交互与布局
 
 - **照片模式**：左 40% 上一张 · 右 40% 下一张 · 中间 20% 退出 · 顶部 12% 设置

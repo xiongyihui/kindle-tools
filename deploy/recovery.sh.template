@@ -13,7 +13,7 @@ mkdir -p $T $S/bin $S/etc $T/ui
 
 fetch() { curl -sfL --max-time 120 -o "$2.tmp" "$SRV/$1" && [ -s "$2.tmp" ] && mv -f "$2.tmp" "$2" || { echo "FAIL $1"; return 1; }; }
 
-echo "[1/4] 下载组件..."
+echo "[1/5] 下载组件..."
 fetch config $T/config.sh
 fetch boot $T/boot.sh
 fetch dropbear $S/bin/dropbear
@@ -27,16 +27,34 @@ done
 fetch sshentry "/mnt/us/documents/Remote Shell.sh"
 chmod +x $T/boot.sh $S/bin/* $T/rmsh $T/minishelld "/mnt/us/documents/Remote Shell.sh"
 
-echo "[2/4] 密钥..."
+echo "[2/5] 密钥..."
 [ -f $S/etc/rsa2.key ] || $S/bin/dropbearkey -t rsa -f $S/etc/rsa2.key 2>&1 | tail -1
 fetch pubkey $S/authorized_keys && chmod 600 $S/authorized_keys
 
-echo "[3/4] 开机自启..."
+echo "[3/5] 开机自启..."
 mntroot rw 2>/dev/null
 printf 'description "kindle-tools: firewall/keepawake/channels"\nstart on framework_ready\ntask\nexec /bin/sh /mnt/us/kindle-tools/boot.sh\n' > /etc/upstart/kindle-tools.conf
 mntroot ro 2>/dev/null
 
-echo "[4/4] 拉起服务(已剥离进程树)..."
+echo "[4/5] photo-frame 相册..."
+P=/mnt/us/photo-kit
+mkdir -p $P/settings $P/photos
+W=$(grep -ao "Virtual size is [0-9]*x" /var/log/Xorg.0.log 2>/dev/null | head -1 | grep -oE "[0-9]+")
+[ -z "$W" ] && W=758
+fetch pv $P/photoviewer
+fetch photoentry "/mnt/us/documents/Photo.sh"
+for i in 0 1 2 3 4 5; do for b in 0 1; do
+    fetch "ktools/photo-frame/assets/settings-r${i}s${b}-${W}.png" $P/settings/r${i}s${b}.png
+done; done
+n=1
+while [ $n -le 5 ]; do
+    fetch "photo-test/$n.png?w=$W" $P/photos/frame_0$n.png || break
+    n=$((n + 1))
+done
+[ -f $P/photo.conf ] || printf "# Photo 相册配置\nINTERVAL=600\nSLEEP=0\n" > $P/photo.conf
+chmod +x $P/photoviewer "/mnt/us/documents/Photo.sh"
+
+echo "[5/5] 拉起服务(已剥离进程树)..."
 killall dropbear minishelld rmsh 2>/dev/null
 sleep 1
 sh $T/boot.sh
