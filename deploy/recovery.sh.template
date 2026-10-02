@@ -1,0 +1,59 @@
+#!/bin/sh
+# recovery.sh 模板 — kindle-tools 全量恢复/部署 (ssh 不可用时的救命通道)
+# 使用: 复制到服务器分发目录, 将 YOUR_MAC_IP 替换为真实地址, 由 /t 路由分发
+# 设备 kterm 里运行: curl -sL http://YOUR_MAC_IP:3000/t | sh
+
+SRV=http://YOUR_MAC_IP:3000
+T=/mnt/us/kindle-tools
+S=/mnt/us/ssh
+
+# --- 0. 防休眠 + 防火墙先保命 ---
+lipc-set-prop -i com.lab126.powerd preventScreenSaver 1 2>/dev/null
+lipc-set-prop -i com.lab126.powerd touchScreenSaverTimeout 86400 2>/dev/null
+iptables -I INPUT 1 -i wlan0 -p tcp --dport 22 -j ACCEPT 2>/dev/null
+iptables -I INPUT 1 -i wlan0 -p icmp -j ACCEPT 2>/dev/null
+
+mkdir -p $T $S/bin $S/etc
+
+fetch() { # $1=服务器路径 $2=目标(先.tmp再mv, 避开运行中二进制的 ETXTBSY)
+    curl -sfL --max-time 180 -o "$2.tmp" "$SRV/$1" || { echo "下载 $1 失败"; exit 1; }
+    [ -s "$2.tmp" ] || { echo "下载 $1 异常(空)"; exit 1; }
+    mv -f "$2.tmp" "$2"
+}
+
+echo "[1/4] 下载配置与核心组件..."
+fetch config   $T/config.sh
+fetch boot     $T/boot.sh
+fetch dropbear $S/bin/dropbear
+fetch dropbearkey $S/bin/dropbearkey
+. $T/config.sh
+: ${ENABLE_TELNET:=0}; : ${ENABLE_POLL:=1}; : ${SSH_PORT:=22}
+
+echo "[2/4] 按配置下载可选组件..."
+[ "$ENABLE_TELNET" = 1 ] && fetch shd $T/minishelld && chmod +x $T/minishelld
+[ "$ENABLE_POLL" = 1 ] && fetch poll $T/poll.sh && chmod +x $T/poll.sh
+chmod +x $T/boot.sh $S/bin/dropbear $S/bin/dropbearkey
+
+echo "[3/4] 密钥与开机自启..."
+[ -f $S/etc/rsa2.key ] || $S/bin/dropbearkey -t rsa -f $S/etc/rsa2.key
+fetch pubkey $S/authorized_keys   # 公钥由服务器 /pubkey 提供, 不进本仓库
+chmod 600 $S/authorized_keys 2>/dev/null
+mntroot rw 2>/dev/null
+printf 'description "kindle-tools: firewall/keepawake/channels"\nstart on framework_ready\ntask\nexec /bin/sh /mnt/us/kindle-tools/boot.sh\n' > /etc/upstart/kindle-tools.conf
+mntroot ro 2>/dev/null
+
+echo "[4/4] 清旧进程并拉起..."
+kill $(cat $T/minishelld.pid $T/poll.pid 2>/dev/null) 2>/dev/null
+killall minishelld poll.sh 2>/dev/null
+sleep 1
+sh $T/boot.sh
+
+sleep 2
+IP=$(ifconfig wlan0 2>/dev/null | grep -oE 'inet addr:[0-9.]+' | head -1 | cut -d: -f2)
+echo ""
+echo "======================================"
+echo " 恢复完成! (config: ssh=$ENABLE_SSH telnet=$ENABLE_TELNET)"
+[ "$ENABLE_SSH" = 1 ] && echo "   ssh root@${IP:-?}   (${SSH_PORT})"
+[ "$ENABLE_TELNET" = 1 ] && echo "   telnet ${IP:-?}     (${TELNET_PORT:-23})"
+echo " 重启后由 upstart 自动拉起"
+echo "======================================"

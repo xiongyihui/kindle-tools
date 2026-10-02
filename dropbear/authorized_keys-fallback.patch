@@ -1,0 +1,14 @@
+--- a/src/svr-authpubkey.c
++++ b/src/svr-authpubkey.c
+@@ -484,6 +484,11 @@
+ 	}
+ #endif
+ 
++	/* Kindle 定制: rootfs 只读导致 ~/.ssh 不可用时, 回退到用户分区的固定路径 */
++	if (authfile == NULL) {
++		authfile = fopen("/mnt/us/ssh/authorized_keys", "r");
++	}
++
+ 	if (authfile == NULL) {
+ 		goto out;
+ 	}

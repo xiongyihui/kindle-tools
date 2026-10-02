@@ -1,0 +1,4 @@
+bin/
+config.sh
+*.log
+*.pid
